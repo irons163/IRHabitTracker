@@ -11,7 +11,8 @@ import SwiftUI
 struct IRHabitTrackerApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
+        .modelContainer(for: Habit.self)
     }
 }
