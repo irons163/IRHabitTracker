@@ -403,6 +403,7 @@ struct RootView: View {
     @State private var search = ""
     @State private var sort: SortKey = .newest
     @State private var layout: LayoutMode = .list
+    @State private var selection: Habit? = nil
 
     // Export / Import
     @State private var exportDoc: JSONDoc? = nil
@@ -430,7 +431,9 @@ struct RootView: View {
         }
         mutating func toggle() {
             let all = Self.allCases
-            if let i = all.firstIndex(of: self) { self = all[(i+1) % all.count] }
+            if let i = all.firstIndex(of: self) {
+                self = all[(i + 1) % all.count]
+            }
         }
     }
 
@@ -490,9 +493,7 @@ struct RootView: View {
                             3
                         )
                     if !top.isEmpty {
-                        Section(
-                            "Leaderboard (Streak)"
-                        ) {
+                        Section("Leaderboard (Streak)") {
                             ForEach(
                                 top
                             ) {
@@ -508,29 +509,64 @@ struct RootView: View {
                             ForEach(filtered) { h in
                                 NavigationLink(value: h) { HabitRow(habit: h) }
                             }
-                            .onDelete { idx in idx.map { filtered[$0] }.forEach(ctx.delete) }
+                            .onDelete { idx in
+                                idx.map { filtered[$0] }.forEach(ctx.delete)
+                            }
                         case .grid2:
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                            LazyVGrid(
+                                columns: [
+                                    GridItem(.flexible()),
+                                    GridItem(.flexible()),
+                                ], spacing: 12
+                            ) {
                                 ForEach(filtered, id: \.id) { h in
-                                    NavigationLink(value: h) {
-                                        HabitGridCard(habit: h)
-                                            .contentShape(Rectangle())
+                                    Button {
+                                        selection = h
+                                    } label: {
+                                        HabitGridCard(habit: h).contentShape(
+                                            Rectangle())
                                     }
                                     .buttonStyle(.plain)
                                     .contextMenu {
-                                        Button(role: .destructive) { ctx.delete(h); try? ctx.save() } label: { Label("Delete", systemImage: "trash") }
-                                        Button { withAnimation(.snappy) { h.increment() } } label: { Label("+1 today", systemImage: "plus.circle") }
+                                        Button(role: .destructive) {
+                                            ctx.delete(h)
+                                            try? ctx.save()
+                                        } label: {
+                                            Label(
+                                                "Delete", systemImage: "trash")
+                                        }
+                                        Button {
+                                            withAnimation(.snappy) {
+                                                h.increment()
+                                            }
+                                        } label: {
+                                            Label(
+                                                "+1 today",
+                                                systemImage: "plus.circle")
+                                        }
                                         if h.todayCount > 0 {
-                                            Button { withAnimation(.snappy) { h.decrement() } } label: { Label("-1 today", systemImage: "minus.circle") }
+                                            Button {
+                                                withAnimation(.snappy) {
+                                                    h.decrement()
+                                                }
+                                            } label: {
+                                                Label(
+                                                    "-1 today",
+                                                    systemImage: "minus.circle")
+                                            }
                                         }
                                     }
                                 }
                             }
                         case .listTall:
                             ForEach(filtered) { h in
-                                NavigationLink(value: h) { HabitTallRow(habit: h) }
+                                NavigationLink(value: h) {
+                                    HabitTallRow(habit: h)
+                                }
                             }
-                            .onDelete { idx in idx.map { filtered[$0] }.forEach(ctx.delete) }
+                            .onDelete { idx in
+                                idx.map { filtered[$0] }.forEach(ctx.delete)
+                            }
                         }
                     } header: {
                         HStack {
@@ -556,16 +592,19 @@ struct RootView: View {
                             ).frame(
                                 maxWidth: 260
                             )
-                            Button { layout.toggle() } label: { Image(systemName: layout.icon) }
+                            Button {
+                                layout.toggle()
+                            } label: {
+                                Image(systemName: layout.icon)
+                            }
                         }
                     }
                 }
-                .navigationDestination(
-                    for: Habit.self
-                ) {
-                    HabitDetailView(
-                        habit: $0
-                    )
+                .navigationDestination(for: Habit.self) {
+                    HabitDetailView(habit: $0)
+                }
+                .navigationDestination(item: $selection) {
+                    HabitDetailView(habit: $0)
                 }
                 .navigationTitle(
                     "Habits"
@@ -607,14 +646,18 @@ struct RootView: View {
         ) {
             _ in
         }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json])
+        { result in
             do {
                 let url = try result.get()
                 let accessed = url.startAccessingSecurityScopedResource()
-                defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+                defer {
+                    if accessed { url.stopAccessingSecurityScopedResource() }
+                }
 
                 let data = try Data(contentsOf: url)
-                let snap = try JSONDecoder().decode(HabitSnapshot.self, from: data)
+                let snap = try JSONDecoder().decode(
+                    HabitSnapshot.self, from: data)
                 try importSnapshot(snap)
             } catch {
                 print("Import error: \(error)")
@@ -738,9 +781,13 @@ extension RootView {
                     Text(habit.title).font(.subheadline.weight(.semibold))
                     Spacer()
                 }
-                ProgressView(value: min(Double(habit.todayCount)/Double(max(1, habit.targetPerDay)), 1))
+                ProgressView(
+                    value: min(
+                        Double(habit.todayCount)
+                            / Double(max(1, habit.targetPerDay)), 1))
                 HStack(spacing: 6) {
-                    Image(systemName: "flame.fill"); Text("\(habit.currentStreak)")
+                    Image(systemName: "flame.fill")
+                    Text("\(habit.currentStreak)")
                     Spacer()
                     Text("\(habit.todayCount)/\(habit.targetPerDay)")
                 }
@@ -749,10 +796,11 @@ extension RootView {
             }
             .padding(12)
             .background(habit.color.opacity(0.08), in: .rect(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.quaternary, lineWidth: 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12).stroke(
+                    .quaternary, lineWidth: 1))
         }
     }
-
 
     struct HabitTallRow: View {
         let habit: Habit
@@ -762,9 +810,14 @@ extension RootView {
                     Image(systemName: habit.icon).foregroundStyle(habit.color)
                     Text(habit.title).font(.headline)
                     Spacer()
-                    Text("\(habit.todayCount)/\(habit.targetPerDay)").font(.subheadline).foregroundStyle(.secondary)
+                    Text("\(habit.todayCount)/\(habit.targetPerDay)").font(
+                        .subheadline
+                    ).foregroundStyle(.secondary)
                 }
-                ProgressView(value: min(Double(habit.todayCount)/Double(max(1, habit.targetPerDay)), 1))
+                ProgressView(
+                    value: min(
+                        Double(habit.todayCount)
+                            / Double(max(1, habit.targetPerDay)), 1))
                 HStack(spacing: 8) {
                     StreakBadge(streak: habit.currentStreak, color: habit.color)
                     if !habit.tags.isEmpty {
