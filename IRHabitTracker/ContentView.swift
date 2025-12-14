@@ -1274,31 +1274,34 @@ struct HabitDetailView: View {
 struct MonthCalendar: View {
     @Bindable var habit: Habit
     var monthStart: Date
+
+    private func rotatedWeekdaySymbols(cal: Calendar) -> [String] {
+        let df = DateFormatter()
+        df.locale = cal.locale
+        // 預設 Foundation 的 weekday 符號順序為從星期日開始
+        let base = df.veryShortStandaloneWeekdaySymbols
+            ?? df.shortStandaloneWeekdaySymbols
+            ?? df.shortWeekdaySymbols ?? []
+        guard base.count == 7 else { return ["S","M","T","W","T","F","S"] }
+        let start = cal.firstWeekday - 1 // 轉為 0...6
+        return Array(base[start...] + base[..<start])
+    }
+
     var body: some View {
         let cal = Calendar.current
         let first = monthStart.startOfMonth
-        let range =
-            cal.range(
-                of: .day,
-                in: .month,
-                for: first
-            )
-            ?? Range(
-                1...30
-            )
-        let firstWeekday = cal.component(
-            .weekday,
-            from: first
-        )  // 1=Sun
-        let prefix = (firstWeekday + 6) % 7  // make Monday=0 leading blanks
-        let days =
-            Array(
-                repeating: 0,
-                count: prefix
-            )
-            + Array(
-                range
-            )
+
+        // 當月天數範圍
+        let range = cal.range(of: .day, in: .month, for: first) ?? 1..<31
+
+        // 0...6（0=Sunday, 6=Saturday）
+        let weekdayIndex0 = cal.component(.weekday, from: first) - 1
+        let firstWeekdayIndex0 = cal.firstWeekday - 1
+        // 前置空白：將當月第一天對齊到使用者的一週起始日
+        let prefix = (weekdayIndex0 - firstWeekdayIndex0 + 7) % 7
+
+        let days = Array(repeating: 0, count: prefix) + Array(range)
+
         LazyVGrid(
             columns: Array(
                 repeating: GridItem(
@@ -1309,33 +1312,14 @@ struct MonthCalendar: View {
             ),
             spacing: 6
         ) {
-            let syms = [
-                "M",
-                "T",
-                "W",
-                "T",
-                "F",
-                "S",
-                "S",
-            ]
-            ForEach(
-                Array(
-                    syms.enumerated()
-                ),
-                id: \.offset
-            ) {
-                _,
-                sym in
-                Text(
-                    sym
-                )
-                .font(
-                    .caption2
-                )
-                .foregroundStyle(
-                    .secondary
-                )
+            // 星期標頭（在地化並依 firstWeekday 旋轉）
+            let syms = rotatedWeekdaySymbols(cal: cal)
+            ForEach(Array(syms.enumerated()), id: \.offset) { _, sym in
+                Text(sym)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
+
             ForEach(
                 0..<days.count,
                 id: \.self
