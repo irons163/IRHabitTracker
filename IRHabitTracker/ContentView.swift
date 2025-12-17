@@ -409,6 +409,9 @@ struct RootView: View {
     @State private var exportDoc: JSONDoc? = nil
     @State private var showImporter = false
 
+    // Collapsible Leaderboard
+    @State private var showLeaderboard = true
+
     enum SortKey: String, CaseIterable, Identifiable {
         case newest = "Newest"
         case
@@ -493,13 +496,35 @@ struct RootView: View {
                             3
                         )
                     if !top.isEmpty {
-                        Section("Leaderboard (Streak)") {
-                            ForEach(
-                                top
-                            ) {
-                                StreakRow(
-                                    habit: $0
-                                )
+                        Section {
+                            if showLeaderboard {
+                                ForEach(
+                                    top
+                                ) {
+                                    StreakRow(
+                                        habit: $0
+                                    )
+                                }
+                            }
+                        } header: {
+                            // Collapsible header
+                            HStack {
+                                Button {
+                                    withAnimation(.snappy) {
+                                        showLeaderboard.toggle()
+                                    }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(
+                                            systemName: showLeaderboard
+                                                ? "chevron.down"
+                                                : "chevron.right"
+                                        )
+                                        Text("Leaderboard (Streak)")
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                Spacer()
                             }
                         }
                     }
@@ -2017,7 +2042,7 @@ extension Color {
                 alpha: &a
             )
             return String(
-                format: "%02X%02X%02X",
+                format: "%02X%02%02X",
                 Int(
                     r * 255
                 ),
