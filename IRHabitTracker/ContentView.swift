@@ -488,139 +488,148 @@ struct RootView: View {
                         toolbarItems
                     })
             } else {
-                List {
-                    let top = habits.sorted(
-                        by: {
-                            $0.currentStreak > $1.currentStreak
-                        }).prefix(
-                            3
-                        )
-                    if !top.isEmpty {
-                        Section {
-                            if showLeaderboard {
-                                ForEach(
-                                    top
-                                ) {
-                                    StreakRow(
-                                        habit: $0
-                                    )
-                                }
-                            }
-                        } header: {
-                            // Collapsible header
-                            HStack {
-                                Button {
-                                    withAnimation(.snappy) {
-                                        showLeaderboard.toggle()
+                Group {
+                    switch layout {
+                    case .list:
+                        List {
+                            let top = habits.sorted(by: { $0.currentStreak > $1.currentStreak }).prefix(3)
+                            if !top.isEmpty {
+                                Section {
+                                    if showLeaderboard {
+                                        ForEach(top) { StreakRow(habit: $0) }
                                     }
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Image(
-                                            systemName: showLeaderboard
-                                                ? "chevron.down"
-                                                : "chevron.right"
-                                        )
-                                        Text("Leaderboard (Streak)")
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                Spacer()
-                            }
-                        }
-                    }
-                    Section {
-                        switch layout {
-                        case .list:
-                            ForEach(filtered) { h in
-                                NavigationLink(value: h) { HabitRow(habit: h) }
-                            }
-                            .onDelete { idx in
-                                idx.map { filtered[$0] }.forEach(ctx.delete)
-                            }
-                        case .grid2:
-                            LazyVGrid(
-                                columns: [
-                                    GridItem(.flexible()),
-                                    GridItem(.flexible()),
-                                ], spacing: 12
-                            ) {
-                                ForEach(filtered, id: \.id) { h in
-                                    Button {
-                                        selection = h
-                                    } label: {
-                                        HabitGridCard(habit: h).contentShape(
-                                            Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            ctx.delete(h)
-                                            try? ctx.save()
-                                        } label: {
-                                            Label(
-                                                "Delete", systemImage: "trash")
-                                        }
+                                } header: {
+                                    HStack {
                                         Button {
-                                            withAnimation(.snappy) {
-                                                h.increment()
-                                            }
+                                            withAnimation(.snappy) { showLeaderboard.toggle() }
                                         } label: {
-                                            Label(
-                                                "+1 today",
-                                                systemImage: "plus.circle")
-                                        }
-                                        if h.todayCount > 0 {
-                                            Button {
-                                                withAnimation(.snappy) {
-                                                    h.decrement()
-                                                }
-                                            } label: {
-                                                Label(
-                                                    "-1 today",
-                                                    systemImage: "minus.circle")
+                                            HStack(spacing: 6) {
+                                                Image(systemName: showLeaderboard ? "chevron.down" : "chevron.right")
+                                                Text("Leaderboard (Streak)")
                                             }
                                         }
+                                        .buttonStyle(.plain)
+                                        Spacer()
                                     }
                                 }
                             }
-                        case .listTall:
-                            ForEach(filtered) { h in
-                                NavigationLink(value: h) {
-                                    HabitTallRow(habit: h)
+                            Section {
+                                ForEach(filtered) { h in
+                                    NavigationLink(value: h) { HabitRow(habit: h) }
                                 }
-                            }
-                            .onDelete { idx in
-                                idx.map { filtered[$0] }.forEach(ctx.delete)
+                                .onDelete { idx in
+                                    idx.map { filtered[$0] }.forEach(ctx.delete)
+                                }
+                            } header: {
+                                headerControls
                             }
                         }
-                    } header: {
-                        HStack {
-                            Text(
-                                "All Habits"
-                            )
-                            Spacer()
-                            Picker(
-                                "Sort",
-                                selection: $sort
-                            ) {
-                                ForEach(
-                                    SortKey.allCases
-                                ) {
-                                    Text(
-                                        $0.rawValue
-                                    ).tag(
-                                        $0
-                                    )
+                    case .grid2:
+                        // Decouple from List to avoid identity issues
+                        ScrollView {
+                            VStack(spacing: 12) {
+                                // Optional leaderboard replicated for grid mode
+                                let top = habits.sorted(by: { $0.currentStreak > $1.currentStreak }).prefix(3)
+                                if !top.isEmpty {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Button {
+                                                withAnimation(.snappy) { showLeaderboard.toggle() }
+                                            } label: {
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: showLeaderboard ? "chevron.down" : "chevron.right")
+                                                    Text("Leaderboard (Streak)")
+                                                }
+                                            }
+                                            .buttonStyle(.plain)
+                                            Spacer()
+                                        }
+                                        if showLeaderboard {
+                                            ForEach(top) { StreakRow(habit: $0) }
+                                        }
+                                    }
+                                    .padding(.horizontal)
                                 }
-                            }.pickerStyle(
-                                .segmented
-                            ).frame(
-                                maxWidth: 260
-                            )
-                            Button {
-                                layout.toggle()
-                            } label: {
-                                Image(systemName: layout.icon)
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("All Habits")
+                                        Spacer()
+                                        headerControls
+                                            .labelsHidden()
+                                            .frame(maxWidth: 320)
+                                    }
+                                    .padding(.horizontal)
+                                    LazyVGrid(
+                                        columns: [GridItem(.flexible()), GridItem(.flexible())],
+                                        spacing: 12
+                                    ) {
+                                        ForEach(filtered, id: \.id) { h in
+                                            HabitGridCard(habit: h)
+                                                .id(h.id)
+                                                .contentShape(Rectangle())
+                                                .onTapGesture { selection = h }
+                                                .contextMenu {
+                                                    Button(role: .destructive) {
+                                                        withAnimation(.snappy) {
+                                                            ctx.delete(h)
+                                                            try? ctx.save()
+                                                        }
+                                                    } label: {
+                                                        Label("Delete", systemImage: "trash")
+                                                    }
+                                                    Button {
+                                                        withAnimation(.snappy) { h.increment() }
+                                                    } label: {
+                                                        Label("+1 today", systemImage: "plus.circle")
+                                                    }
+                                                    if h.todayCount > 0 {
+                                                        Button {
+                                                            withAnimation(.snappy) { h.decrement() }
+                                                        } label: {
+                                                            Label("-1 today", systemImage: "minus.circle")
+                                                        }
+                                                    }
+                                                }
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    case .listTall:
+                        List {
+                            let top = habits.sorted(by: { $0.currentStreak > $1.currentStreak }).prefix(3)
+                            if !top.isEmpty {
+                                Section {
+                                    if showLeaderboard {
+                                        ForEach(top) { StreakRow(habit: $0) }
+                                    }
+                                } header: {
+                                    HStack {
+                                        Button {
+                                            withAnimation(.snappy) { showLeaderboard.toggle() }
+                                        } label: {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: showLeaderboard ? "chevron.down" : "chevron.right")
+                                                Text("Leaderboard (Streak)")
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                        Spacer()
+                                    }
+                                }
+                            }
+                            Section {
+                                ForEach(filtered) { h in
+                                    NavigationLink(value: h) { HabitTallRow(habit: h) }
+                                }
+                                .onDelete { idx in
+                                    idx.map { filtered[$0] }.forEach(ctx.delete)
+                                }
+                            } header: {
+                                headerControls
                             }
                         }
                     }
@@ -631,24 +640,16 @@ struct RootView: View {
                 .navigationDestination(item: $selection) {
                     HabitDetailView(habit: $0)
                 }
-                .navigationTitle(
-                    "Habits"
-                )
-                .toolbar {
-                    toolbarItems
-                }
+                .navigationTitle("Habits")
+                .toolbar { toolbarItems }
                 .searchable(
                     text: $search,
-                    placement: .navigationBarDrawer(
-                        displayMode: .always
-                    ),
+                    placement: .navigationBarDrawer(displayMode: .always),
                     prompt: "Search title or tags…"
                 )
             }
         }
-        .sheet(
-            isPresented: $showNew
-        ) {
+        .sheet(isPresented: $showNew) {
             NewHabitSheet()
         }
         .task {
@@ -656,36 +657,39 @@ struct RootView: View {
         }
         .fileExporter(
             isPresented: Binding(
-                get: {
-                    exportDoc != nil
-                },
-                set: {
-                    if !$0 {
-                        exportDoc = nil
-                    }
-                }),
+                get: { exportDoc != nil },
+                set: { if !$0 { exportDoc = nil } }
+            ),
             document: exportDoc,
             contentType: .json,
-            defaultFilename:
-                "HabitExport-\(Date().formatted(.iso8601.year().month().day()))"
-        ) {
-            _ in
-        }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json])
-        { result in
+            defaultFilename: "HabitExport-\(Date().formatted(.iso8601.year().month().day()))"
+        ) { _ in }
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
             do {
                 let url = try result.get()
                 let accessed = url.startAccessingSecurityScopedResource()
-                defer {
-                    if accessed { url.stopAccessingSecurityScopedResource() }
-                }
+                defer { if accessed { url.stopAccessingSecurityScopedResource() } }
 
                 let data = try Data(contentsOf: url)
-                let snap = try JSONDecoder().decode(
-                    HabitSnapshot.self, from: data)
+                let snap = try JSONDecoder().decode(HabitSnapshot.self, from: data)
                 try importSnapshot(snap)
             } catch {
                 print("Import error: \(error)")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var headerControls: some View {
+        HStack {
+            Picker("Sort", selection: $sort) {
+                ForEach(SortKey.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Button {
+                layout.toggle()
+            } label: {
+                Image(systemName: layout.icon)
             }
         }
     }
@@ -695,30 +699,17 @@ struct RootView: View {
             placement: .topBarLeading
         ) {
             Menu {
-                Button(
-                    "Export JSON"
-                ) {
-                    let snap = HabitSnapshot.fromModel(
-                        habits
-                    )
-                    if let data = try? JSONEncoder().encode(
-                        snap
-                    ) {
-                        exportDoc = JSONDoc(
-                            data: data
-                        )
+                Button("Export JSON") {
+                    let snap = HabitSnapshot.fromModel(habits)
+                    if let data = try? JSONEncoder().encode(snap) {
+                        exportDoc = JSONDoc(data: data)
                     }
                 }
-                Button(
-                    "Import JSON"
-                ) {
+                Button("Import JSON") {
                     showImporter = true
                 }
             } label: {
-                Label(
-                    "Data",
-                    systemImage: "square.and.arrow.up"
-                )
+                Label("Data", systemImage: "square.and.arrow.up")
             }
         }
         ToolbarItem(
@@ -727,10 +718,7 @@ struct RootView: View {
             Button {
                 showNew = true
             } label: {
-                Label(
-                    "New Habit",
-                    systemImage: "plus"
-                )
+                Label("New Habit", systemImage: "plus")
             }
         }
     }
@@ -739,12 +727,8 @@ struct RootView: View {
         _ snap: HabitSnapshot
     ) throws {
         let existing = Dictionary(
-            uniqueKeysWithValues: habits.map {
-                (
-                    $0.id,
-                    $0
-                )
-            })
+            uniqueKeysWithValues: habits.map { ($0.id, $0) }
+        )
         for it in snap.items {
             if let h = existing[it.id] {
                 h.title = it.title
@@ -767,9 +751,7 @@ struct RootView: View {
                 let h = Habit(
                     title: it.title,
                     icon: it.icon,
-                    color: Color(
-                        hex: it.colorHex
-                    ),
+                    color: Color(hex: it.colorHex),
                     notes: it.notes,
                     targetPerDay: it.targetPerDay,
                     tags: it.tags
@@ -783,14 +765,10 @@ struct RootView: View {
                 if h.remindEnabled {
                     h.scheduleReminder()
                 }
-                ctx
-                    .insert(
-                        h
-                    )
+                ctx.insert(h)
             }
         }
-        try ctx
-            .save()
+        try ctx.save()
     }
 }
 
