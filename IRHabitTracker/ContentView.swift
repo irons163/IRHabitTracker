@@ -2020,7 +2020,7 @@ extension Color {
                 alpha: &a
             )
             return String(
-                format: "%02X%02%02X",
+                format: "%02X%02X%02X",
                 Int(
                     r * 255
                 ),
